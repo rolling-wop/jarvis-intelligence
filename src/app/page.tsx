@@ -21,8 +21,10 @@ interface MarketItem {
 
 async function fetchQuote(symbol: string): Promise<MarketItem | null> {
   try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 8000);
     const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${ALPHA_VANTAGE_KEY}`;
-    const res = await fetch(url, { next: { revalidate: 300 } });
+    const res = await fetch(url, { signal: controller.signal, next: { revalidate: 300 } } as RequestInit);
     const data = await res.json();
     const q = data['Global Quote'];
     if (!q || !q['05. price']) return null;
@@ -37,9 +39,11 @@ async function fetchQuote(symbol: string): Promise<MarketItem | null> {
 
 async function fetchSgdUsd(): Promise<number | null> {
   try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 8000);
     const res = await fetch(
       'https://api.mas.gov.sg/api/action/datastore/search.json?resource_id=95932927-c8bc-4e7a-b484-68a66a24edfe&limit=1',
-      { next: { revalidate: 3600 } }
+      { signal: controller.signal, next: { revalidate: 3600 } } as RequestInit
     );
     const data = await res.json();
     const records = data?.result?.records;
@@ -55,9 +59,11 @@ async function fetchSgdUsd(): Promise<number | null> {
 
 async function fetchTopNews(): Promise<Article[]> {
   try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 8000);
     const symbols = 'SPY,QQQ,EWS,NVDA,TLT';
     const url = `https://api.marketaux.com/v1/news/all?symbols=${symbols}&filter_entities=true&language=en&api_token=${MARKETAUX_API_KEY}&limit=5`;
-    const res = await fetch(url, { next: { revalidate: 1800 } });
+    const res = await fetch(url, { signal: controller.signal, next: { revalidate: 1800 } } as RequestInit);
     if (!res.ok) return [];
     const data = await res.json();
     return (data.data || []).slice(0, 5).map((a: {
