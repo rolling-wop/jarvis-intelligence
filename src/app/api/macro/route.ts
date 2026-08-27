@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fetchFred, latestFred, trend } from '@/lib/api';
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600; // cache 1 hour
 
 export async function GET() {
   try {
