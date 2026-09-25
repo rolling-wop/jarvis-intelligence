@@ -1,4 +1,38 @@
 export const dynamic = 'force-dynamic';
+import { ALPHA_VANTAGE_KEY } from '@/lib/api';
+
+interface SgStock {
+  ticker: string;
+  name: string;
+  sector: string;
+  price: number | null;
+  change: number | null;
+  changePct: number | null;
+  isLive: boolean;
+  fallbackPrice: number;
+}
+
+async function fetchSgStock(ticker: string, fallback: number): Promise<{ price: number | null; change: number | null; changePct: number | null; isLive: boolean }> {
+  try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 8000);
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${ALPHA_VANTAGE_KEY}`;
+    const res = await fetch(url, { signal: controller.signal, next: { revalidate: 3600 } } as RequestInit);
+    const data = await res.json();
+    const q = data['Global Quote'];
+    if (!q || !q['05. price'] || parseFloat(q['05. price']) === 0) {
+      return { price: fallback, change: null, changePct: null, isLive: false };
+    }
+    return {
+      price: parseFloat(q['05. price']),
+      change: parseFloat(q['09. change']),
+      changePct: parseFloat(q['10. change percent']?.replace('%', '') ?? '0'),
+      isLive: true,
+    };
+  } catch {
+    return { price: fallback, change: null, changePct: null, isLive: false };
+  }
+}
 
 async function getSgdUsd(): Promise<number | null> {
   try {
@@ -19,12 +53,13 @@ async function getSgdUsd(): Promise<number | null> {
   } catch { return null; }
 }
 
-const sgStocks = [
-  { ticker: 'D05.SI', name: 'DBS Group', price: 38.50, change: '+0.82%', sector: 'Banking' },
-  { ticker: 'O39.SI', name: 'OCBC Bank', price: 15.20, change: '+0.53%', sector: 'Banking' },
-  { ticker: 'U11.SI', name: 'UOB', price: 33.10, change: '-0.30%', sector: 'Banking' },
-  { ticker: 'Z74.SI', name: 'SingTel', price: 2.78, change: '+1.09%', sector: 'Telecom' },
-  { ticker: 'C6L.SI', name: 'Singapore Airlines', price: 6.42, change: '+0.47%', sector: 'Aviation' },
+// Fallback prices (SGD) — updated Sep 2026. Used when Alpha Vantage rate-limits.
+const SG_STOCK_LIST = [
+  { ticker: 'D05.SI', name: 'DBS Group', sector: 'Banking', fallback: 40.20 },
+  { ticker: 'O39.SI', name: 'OCBC Bank', sector: 'Banking', fallback: 16.80 },
+  { ticker: 'U11.SI', name: 'UOB', sector: 'Banking', fallback: 34.50 },
+  { ticker: 'Z74.SI', name: 'SingTel', sector: 'Telecom', fallback: 3.10 },
+  { ticker: 'C6L.SI', name: 'Singapore Airlines', sector: 'Aviation', fallback: 7.20 },
 ];
 
 const masPolicy = {
@@ -37,7 +72,22 @@ const masPolicy = {
 };
 
 export default async function SingaporePage() {
-  const sgdUsd = await getSgdUsd();
+  // Fetch SGD rate + SG stocks in parallel (rate-limit aware: 1hr cache per stock)
+  const [sgdUsd, ...stockResults] = await Promise.all([
+    getSgdUsd(),
+    ...SG_STOCK_LIST.map(s => fetchSgStock(s.ticker, s.fallback)),
+  ]);
+
+  const sgStocks: SgStock[] = SG_STOCK_LIST.map((s, i) => ({
+    ticker: s.ticker,
+    name: s.name,
+    sector: s.sector,
+    fallbackPrice: s.fallback,
+    price: stockResults[i].price,
+    change: stockResults[i].change,
+    changePct: stockResults[i].changePct,
+    isLive: stockResults[i].isLive,
+  }));
 
   const usdSgd = sgdUsd ? (1 / sgdUsd).toFixed(4) : '1.3350'; // fallback
 
@@ -98,8 +148,11 @@ export default async function SingaporePage() {
 
       {/* SG Key Stocks */}
       <div className="card mb-6">
-        <div className="text-sm font-semibold text-gray-300 uppercase tracking-widest mb-4">
-          Key SG Stocks <span className="text-xs text-gray-500 font-normal ml-2">MVP indicative values</span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-sm font-semibold text-gray-300 uppercase tracking-widest">
+            Key SG Stocks
+          </div>
+          <div className="text-xs text-gray-600">Via Alpha Vantage · 1hr cache</div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -109,20 +162,30 @@ export default async function SingaporePage() {
                 <th className="text-left py-2 pr-4">Name</th>
                 <th className="text-left py-2 pr-4">Sector</th>
                 <th className="text-right py-2 pr-4">Price (SGD)</th>
-                <th className="text-right py-2">Change</th>
+                <th className="text-right py-2 pr-4">Change</th>
+                <th className="text-right py-2">Source</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
               {sgStocks.map((stock) => {
-                const isUp = stock.change.startsWith('+');
+                const isUp = (stock.changePct ?? 0) >= 0;
                 return (
                   <tr key={stock.ticker} className="hover:bg-gray-800/30 transition-colors">
                     <td className="py-2.5 pr-4 font-mono text-blue-400">{stock.ticker}</td>
                     <td className="py-2.5 pr-4 text-gray-200">{stock.name}</td>
                     <td className="py-2.5 pr-4 text-gray-500">{stock.sector}</td>
-                    <td className="py-2.5 pr-4 text-right font-mono text-white">${stock.price.toFixed(2)}</td>
-                    <td className={`py-2.5 text-right font-mono ${isUp ? 'text-green-400' : 'text-red-400'}`}>
-                      {stock.change}
+                    <td className="py-2.5 pr-4 text-right font-mono text-white">
+                      S${stock.price !== null ? stock.price.toFixed(2) : 'N/A'}
+                    </td>
+                    <td className={`py-2.5 pr-4 text-right font-mono ${isUp ? 'text-green-400' : 'text-red-400'}`}>
+                      {stock.changePct !== null
+                        ? `${isUp ? '+' : ''}${stock.changePct.toFixed(2)}%`
+                        : <span className="text-gray-600">—</span>}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      {stock.isLive
+                        ? <span className="text-xs text-green-400 bg-green-900/20 border border-green-800/40 px-1.5 py-0.5 rounded">Live</span>
+                        : <span className="text-xs text-gray-600 bg-gray-800/40 border border-gray-700/40 px-1.5 py-0.5 rounded">Fallback</span>}
                     </td>
                   </tr>
                 );
@@ -131,7 +194,7 @@ export default async function SingaporePage() {
           </table>
         </div>
         <div className="text-xs text-gray-600 mt-3">
-          ⚠️ MVP indicative values only. Live SGX data integration coming in v2.
+          Live = Alpha Vantage real-time. Fallback = last known prices (Sep 2026) — shown when API rate limit hit.
         </div>
       </div>
 

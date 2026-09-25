@@ -2,14 +2,15 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { BarChart3, Globe, Newspaper, TrendingUp, FileText, Menu, X } from 'lucide-react';
+import { BarChart3, Globe, Newspaper, TrendingUp, FileText, Menu, X, PieChart } from 'lucide-react';
 
 const links = [
   { href: '/', label: 'Dashboard', icon: BarChart3 },
   { href: '/macro', label: 'Macro', icon: TrendingUp },
   { href: '/news', label: 'News', icon: Newspaper },
   { href: '/singapore', label: '🇸🇬 Singapore', icon: Globe },
-  { href: '/brief', label: '📋 Morning Brief', icon: FileText },
+  { href: '/funds', label: '📊 ILP Funds', icon: PieChart },
+  { href: '/brief', label: '📋 Brief', icon: FileText },
 ];
 
 export default function Nav() {

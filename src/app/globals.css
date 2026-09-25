@@ -36,3 +36,36 @@ body {
 .trend-up { @apply text-green-400; }
 .trend-down { @apply text-red-400; }
 .trend-flat { @apply text-yellow-400; }
+
+/* ─── Mobile Fixes ────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .market-strip-item {
+    @apply px-3 py-1;
+  }
+
+  /* Prevent horizontal overflow on small screens */
+  body {
+    overflow-x: hidden;
+  }
+
+  /* Card padding reduced on mobile */
+  .card {
+    @apply p-3;
+  }
+
+  /* Tables: allow horizontal scroll on mobile */
+  table {
+    font-size: 0.75rem;
+  }
+}
+
+/* Ensure nav doesn't overlap content */
+main, .page-content {
+  padding-top: 3.5rem;
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #030712; }
+::-webkit-scrollbar-thumb { background: #374151; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #4B5563; }
