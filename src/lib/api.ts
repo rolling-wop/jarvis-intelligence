@@ -1,6 +1,6 @@
-export const FRED_API_KEY = process.env.FRED_API_KEY || '012d1ded9790d187cdcc58f63147cf5d';
-export const MARKETAUX_API_KEY = process.env.MARKETAUX_API_KEY || '1623kqHuVWGRbrDHWfgqQbqSyxrCOwAUPTDPCWML';
-export const ALPHA_VANTAGE_KEY = process.env.ALPHA_VANTAGE_KEY || 'TO45QFIMZZB6CRXP';
+export const FRED_API_KEY = process.env.FRED_API_KEY || '';
+export const MARKETAUX_API_KEY = process.env.MARKETAUX_API_KEY || '';
+export const ALPHA_VANTAGE_KEY = process.env.ALPHA_VANTAGE_KEY || '';
 
 // ─── Hardcoded fallback — updated Sep 2026 ──────────────────────────────────
 // Used when FRED API is unreachable from Railway SG region.
